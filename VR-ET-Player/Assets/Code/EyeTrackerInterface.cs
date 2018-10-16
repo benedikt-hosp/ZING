@@ -25,8 +25,10 @@ public class EyeTracker
     {
 
         this.logWriter = logWriter;
-        smiInstance = SMI.SMIEyeTrackingUnity.Instance;
 
+
+        smiInstance = SMI.SMIEyeTrackingUnity.Instance;
+    
         // set callback to receive all gaze samples and save them in file
         smiInstance.smi_SetAsyncGazeSampleCallback(OnHighFrequencyGazeSample);
         this.logWriter.WriteLine(smiInstance.smi_GetTimeStamp() + "\t" + "SMI Eyetracker Started");
@@ -42,20 +44,22 @@ public class EyeTracker
 
     public void startCalibration()
     {
-        smiInstance.smi_StartFivePointCalibration();
         this.logWriter.WriteLine(getSMITimeStamp() + "\t Calibration started\t");
+        smiInstance.smi_StartFivePointCalibration();
+        smiInstance.smi_SetCalibrationReturnCallback(OnCalibrationResult);
+        
     }
 
     // Callback function for getting a calibration result
     public void OnCalibrationResult(int returnCode)
     {
-        Debug.Log("SMI HMD calibration result: " + SMI.SMIEyeTrackingUnity.ErrorIDContainer.getErrorMessage(returnCode));
+        Debug.LogError("SMI HMD calibration result: " + SMI.SMIEyeTrackingUnity.ErrorIDContainer.getErrorMessage(returnCode));
 
         // Return code message:
         //     SMI_SUCCESS: Calibration is successfully done.
         //     SMI_OPERATION_FAILED: Calibration process is aborted.
         logMessage = "Calibration result:\n" + SMI.SMIEyeTrackingUnity.ErrorIDContainer.getErrorMessage(returnCode);
-        Debug.LogWarning(logMessage);
+        Debug.LogError(logMessage);
 
         if (returnCode.Equals(0))
         {
@@ -69,6 +73,18 @@ public class EyeTracker
             calibrationDone = false;
         }
        
+    }
+
+    public bool exists()
+    {
+        if(smiInstance)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
 

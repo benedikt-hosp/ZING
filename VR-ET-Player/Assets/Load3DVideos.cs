@@ -59,10 +59,9 @@ public class Load3DVideos : MonoBehaviour
     List<StimulusDescriptionObject> stimuli;
 
   
-    void Start()
+    IEnumerator Start()
     {
-        createWriters();
-        createEyeTrackerObject();
+        
      
         Resources.UnloadUnusedAssets();
         setupGUIElements();
@@ -72,17 +71,58 @@ public class Load3DVideos : MonoBehaviour
 
         stimuli = new List<StimulusDescriptionObject>();
         experimentPath = createExperimentFolder();
-    
-        ReadCSVFile(experimentPath);
-        CreatePlaylist();
-        startEyeTrackerCalibration();
+
+
+        createWriters();
+        
+        createEyeTrackerObject();
+        startCalibration();
+
+        yield return waitForCalibrationResult();
+
+        
 
     }
 
-    private void startEyeTrackerCalibration()
+    private void startCalibration()
     {
+
         et.startCalibration();
-        StartCoroutine(waitForSuccessfullCalibration());
+    }
+
+    IEnumerator waitForCalibrationResult()
+    {
+    
+       yield return StartCoroutine(waitForSuccessfullCalibration2());
+        StartCoroutine(waitForCalibrationResult());
+        ReadCSVFile(experimentPath);
+        CreatePlaylist();
+
+        Debug.LogError("BEYOND CALIBRATION");
+
+        StartCoroutine(waitForCalibrationResult());
+        ReadCSVFile(experimentPath);
+        CreatePlaylist();
+
+        Debug.LogError("BEYOND CALIBRATION");
+
+    }
+
+    IEnumerator waitForSuccessfullCalibration2()
+    {
+        bool done = false;
+        while (!done) // essentially a "while true", but with a bool to break out naturally
+        {
+            if (et.isCalibrationDone())
+            {
+                done = true; // breaks the loop
+                Debug.LogWarning("Calibration finished");
+            }
+            yield return null;
+        }
+        //yield break;
+
+        // now this function returns
     }
 
     IEnumerator waitForSuccessfullCalibration()
@@ -99,6 +139,7 @@ public class Load3DVideos : MonoBehaviour
             yield return null; // wait until next frame, then continue execution from here (loop continues)
 
         }
+       
 
         // now this function returns
     }
@@ -164,6 +205,14 @@ public class Load3DVideos : MonoBehaviour
     {
        
         et = new EyeTracker(et_logWriter);
+        if(et.exists())
+        {
+            Debug.LogWarning("SMI set up");
+        }
+        else
+        {
+            Debug.LogWarning("SMI failed to set up");
+        }
     }
 
     private string createExperimentFolder()
@@ -188,7 +237,8 @@ public class Load3DVideos : MonoBehaviour
              StartCoroutine(playStimuliList());
          }
 
-         et.writeGaze(et_gazeWriter);
+         if(et.exists())
+            et.writeGaze(et_gazeWriter);
 
         if (Input.GetKey("escape"))
         {
