@@ -72,15 +72,12 @@ public class Load3DVideos : MonoBehaviour
         stimuli = new List<StimulusDescriptionObject>();
         experimentPath = createExperimentFolder();
 
-
         createWriters();
         
         createEyeTrackerObject();
         startCalibration();
 
         yield return waitForCalibrationResult();
-
-        
 
     }
 
