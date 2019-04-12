@@ -35,6 +35,7 @@ public class StimulusDescriptionObject
     public float initialCameraX;
     public float initialCameraY;
     public float initialCameraZ;
+    public float initialCameraW;
 
     public VideoPlayer vp;
     public  string path;
@@ -45,7 +46,7 @@ public class StimulusDescriptionObject
     public int resolution_x, resolution_y;
 
 
-    public StimulusDescriptionObject(StimulusType stimulusType, Dimension dimension, int resolution_x, int resolution_y, string path, bool omniDirectional, float camX, float camY, float camZ)
+    public StimulusDescriptionObject(StimulusType stimulusType, Dimension dimension, int resolution_x, int resolution_y, string path, bool omniDirectional, float camX, float camY, float camZ, float camW)
     {
         
         this.stimulusType = stimulusType;           // Image || Video
@@ -57,6 +58,7 @@ public class StimulusDescriptionObject
         this.initialCameraX = camX;
         this.initialCameraY = camY;
         this.initialCameraZ = camZ;
+        this.initialCameraW = camW;
 
     }
    
@@ -195,6 +197,8 @@ public class Load3DVideos : MonoBehaviour
     public GameObject imageCube;
     CanvasScaler cvsl;
 
+
+
     public GameObject rotationObj;
 
     bool calibrated = false;
@@ -233,6 +237,7 @@ public class Load3DVideos : MonoBehaviour
 
     void Start()
     {
+        DynamicGI.synchronousMode = true;
 
         Resources.UnloadUnusedAssets();
         setupGUIElements();
@@ -599,8 +604,10 @@ public class Load3DVideos : MonoBehaviour
         int resolution_x, resolution_y;             //  3 resolution
         float initCameraX;                            //  4 cameraX
         float initCameraY;                            //  5 cameraY
-        string filename;                            //  6 file name
-        string path;                                //  7 File path
+        float initCameraZ;                            //  6 cameraZ
+        float initCameraW;                            //  7 cameraW
+        string filename;                            //  8 file name
+        string path;                                //  9 File path
 
 
         for(int i =0; i<entries.Length;i++)
@@ -711,14 +718,38 @@ public class Load3DVideos : MonoBehaviour
 
         }
 
+
+        // 6. camera y init position
+        if (entries[6].Equals("-1"))
+        {
+            initCameraZ = 0;
+        }
+        else
+        {
+            initCameraZ = float.Parse(entries[6]);
+
+        }
+
+        // 7. camera y init position
+        if (entries[7].Equals("-1"))
+        {
+            initCameraW = 0;
+        }
+        else
+        {
+            initCameraW = float.Parse(entries[7]);
+
+        }
+
+
         // 6. file name
-        filename = entries[6];
+        filename = entries[8];
 
         // 7. Path to files
-        path = entries[7];
+        path = entries[9];
         Debug.LogWarning(path);
 
-        StimulusDescriptionObject obj = new StimulusDescriptionObject(stimulusType, dimension, resolution_x, resolution_y, path, omniDirectional,initCameraX,initCameraY,0);
+        StimulusDescriptionObject obj = new StimulusDescriptionObject(stimulusType, dimension, resolution_x, resolution_y, path, omniDirectional,initCameraX,initCameraY,initCameraZ,initCameraW);
         if (stimulusType == StimulusType.VIDEO)
         {
             obj.setPlayer(dimension, this.gameObject);
@@ -875,7 +906,10 @@ public class Load3DVideos : MonoBehaviour
 
 
             //Prepare video
-            stimuli[videoIndex].vp.Prepare();
+            if(!stimuli[videoIndex].vp.isPrepared)
+            { 
+                stimuli[videoIndex].vp.Prepare();
+            }
 
             //Wait until this video is prepared
             while (!stimuli[videoIndex].vp.isPrepared)
@@ -886,19 +920,21 @@ public class Load3DVideos : MonoBehaviour
 
             Debug.LogWarning("Done Preparing current Video Index: " + videoIndex);
 
-
+            
+            // LOG
             if (videoIndex - 1 >= 0 && stimuli[videoIndex - 1].stimulusType == StimulusType.IMAGE)
             {
                 player_logWriter.WriteLine(getCurrentTime() + "\t" + "Stop\t" + stimuli[videoIndex - 1].path + "\t\n");
 
             }
+
             player_logWriter.WriteLine(getCurrentTime() + "\t" + "Start\t" + stimuli[videoIndex].path + "\t\n");
 
 
             // Depending on stimulus, change RenderSkybox to 3D or 2D Material
             if (stimuli[videoIndex].dimension == Dimension.THREE_D)
             {
-                skyboxThreeDmat.mainTexture = Resources.Load<RenderTexture>("RenderTextures/rt_4K3D") as RenderTexture;
+                skyboxThreeDmat.mainTexture = Resources.Load<RenderTexture>("RenderTextures/rt_4K3D");
                 RenderSettings.skybox = skyboxThreeDmat;
                 DynamicGI.UpdateEnvironment();
 
@@ -921,49 +957,15 @@ public class Load3DVideos : MonoBehaviour
             }
 
 
-            // set camera initial rotation
-            // Rotate the cube by converting the angles into a quaternion.
-            //Quaternion target = Quaternion.Euler(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY, 0);
-            //Quaternion target = Quaternion.AngleAxis(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY, 0);
-            //Vector3 angles = target.eulerAngles;
+            Quaternion newQuaternion = new Quaternion();
+            newQuaternion.Set(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY, stimuli[videoIndex].initialCameraZ, stimuli[videoIndex].initialCameraW);
 
-            //RenderSettings.skybox.SetFloat("_Rotation", angles.y);
-            //RenderSettings.skybox.SetFloat("_Rotation", 180);
-            //DynamicGI.UpdateEnvironment();
+            Camera.main.transform.rotation = newQuaternion;
+            et_cam.transform.rotation = newQuaternion;
+            vr_cam.transform.rotation = newQuaternion;
 
-
-            //this.rotationObj.transform.rotation = Quaternion.Euler(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY, 0);
-
-
-            //Camera.main.transform.localRotation = Quaternion.Euler(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY,0);
-
-            //transform.RotateAround(transform.position, -Vector3.up, stimuli[videoIndex].initialCameraX);
-            //transform.RotateAround(transform.position, transform.right, stimuli[videoIndex].initialCameraY);
-
-            //Camera.main.transform.RotateAround(transform.position, -Vector3.up, stimuli[videoIndex].initialCameraX);
-
-            Debug.LogError("Camera was x: " + Camera.main.transform.localRotation.x);
-            Debug.LogError("Camera was y: " + Camera.main.transform.localRotation.y);
-            Debug.LogError("Camera was y: " + Camera.main.transform.localRotation.z);
-
-
-            Debug.LogError("X: " + stimuli[videoIndex].initialCameraX);
-            Debug.LogError("Y: " + (float)stimuli[videoIndex].initialCameraY);
-
-            Camera.main.transform.localRotation = Quaternion.Euler(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY, stimuli[videoIndex].initialCameraZ);
-            et_cam.transform.localRotation = Quaternion.Euler(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY, stimuli[videoIndex].initialCameraZ);
-            vr_cam.transform.localRotation = Quaternion.Euler(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY, stimuli[videoIndex].initialCameraZ);
-
-            //Camera.main.transform.
-
-
-
-            //transform.RotateAround(stimuli[videoIndex].initialCameraX, stimuli[videoIndex].initialCameraY, 0);
-
-
-
-            //Play first video
-            stimuli[videoIndex].vp.Play();
+             //Play first video
+             stimuli[videoIndex].vp.Play();
 
             //Wait while the current video is playing
             int nextIndex = (videoIndex + 1);
@@ -996,12 +998,6 @@ public class Load3DVideos : MonoBehaviour
                 ShowFinalImage();
                 yield break;
             }
-
-            // StartCoroutine(GameOverWin());
-            //waitForKeyPress(KeyCode.Space); // wait for this function to return
-
-            //StartCoroutine(GameOverWin());
-
 
 
             Debug.Log("Done Playing current Video Index: " + videoIndex);
@@ -1066,6 +1062,13 @@ public class Load3DVideos : MonoBehaviour
 
     void ShowFinalImage()
     {
+
+        Quaternion newQuaternion = new Quaternion();
+        newQuaternion.Set(0,0,0,0);
+
+        Camera.main.transform.rotation = newQuaternion;
+        et_cam.transform.rotation = newQuaternion;
+        vr_cam.transform.rotation = newQuaternion;
 
         SetEnvironmentBlack();
 
